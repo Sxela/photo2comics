@@ -1,7 +1,8 @@
 # Photo 2 Comics Bot
-https://t.me/photo2comicsbot
-
 Check out how a photo would've looked in a comics book!
+
+Give it a try here: 
+https://t.me/photo2comicsbot
 
 # Install 
 npm install 

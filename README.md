@@ -6,6 +6,7 @@ https://t.me/photo2comicsbot
 
 # Install 
 npm install 
+* set up your ecosystem.config.js for pm2 env variables, or use other preferred method
 
 # Run
 * npm run tsc

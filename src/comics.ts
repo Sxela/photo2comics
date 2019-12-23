@@ -39,31 +39,34 @@ async function saveAnalytics(ctx, response, request){
 
 }
 
-async function photo2comics (image, size, light, ctx): Promise<string> {
+async function photo2comics_resnet (image, size, ctx, new_model): Promise<string> {
 
-  let out = 'data://defileroff/photo2comics_out/'+uuidv4()+'.jpg'
-  let request = {"in":image, "out":out, "size": size, "light":light}
+  let out_path = new_model ? 'data://defileroff/photo2comics_resnet_128_400_60eps/'+uuidv4()+'.jpg' : 'data://defileroff/photo2comics_resnet_out/'+uuidv4()+'.jpg'
+  let algo_path = new_model ? 'defileroff/photo2comics_rn9_128_400/0.1.0' : 'defileroff/photo2comics_resnet/0.1.3'
+  let request = {"in":image, "out":out_path, "size": size}
   console.log('sent to algo')
   const response = await client
-    .algo('defileroff/photo2comics/0.1.2')
+    .algo(algo_path)
     .pipe(request)
     
   saveAnalytics(ctx, response, request)
 
     if (!response.error){
       return new Promise((resolve, reject) =>
-        client.file(out).get((err, result) => err ? reject(err) : resolve(result))
+        client.file(out_path).get((err, result) => err ? reject(err) : resolve(result))
       )}
     else return '-1'
 }
 
+const MAX_TARGET = 1280
 const MAX_SIZE = 700
 const MIN_SIZE = 512
 
 async function handleRequest(ctx){
   var img = ctx.update.message.photo[ctx.update.message.photo.length-1]
   var link = await ctx.telegram.getFileLink(img.file_id)
-  
+
+  //if it's a large photo, offer `large` option
   if (img.width >= MAX_SIZE || img.height >= MAX_SIZE){
     ctx.session.link = link;
     ctx.reply('Got your photo 👍 Save a small or a large one? ', imageMenu )
@@ -71,13 +74,12 @@ async function handleRequest(ctx){
   else {
     ctx.session.link = link;
     ctx.reply('Got your photo 👍 Which model will we use?', smallMenu )
-    // ctx.reply('Got your photo 👍 Doing my magic, please wait!')
-    // handleImage(link, MIN_SIZE, light, ctx)
   }
 }
 
-async function handleImage(link, size, light, ctx){
-  const animeImage = await photo2comics(link, size, light, ctx)
+async function handleImage(link, size, ctx, new_model){
+
+  const animeImage = await photo2comics_resnet(link, size, ctx, new_model)
   try {
     if (animeImage == '-1') {ctx.reply('Something went wrong!')} 
     else {
@@ -99,20 +101,20 @@ const limitConfig = {
   onLimitExceeded: (ctx, next) => ctx.reply('😭 Rate limit exceeded: 120 photos per 60 minutes')
 }
 
-const imageMenu = Telegraf.Extra
-.markdown()
-.markup((m) => m.inlineKeyboard([
-  m.callbackButton('Small light', 'small_l'),
-  m.callbackButton('Large light', 'large_l'),
-  m.callbackButton('Small artistic', 'small_a'),
-  m.callbackButton('Large artistic', 'large_a'),
-]))
-
 const smallMenu = Telegraf.Extra
 .markdown()
 .markup((m) => m.inlineKeyboard([
-  m.callbackButton('Light', 'small_l'),
-  m.callbackButton('Artistic', 'small_a')
+  m.callbackButton('New', 'new_small'),
+  m.callbackButton('Old', 'old_small')
+]))
+
+const imageMenu = Telegraf.Extra
+.markdown()
+.markup((m) => m.inlineKeyboard([
+  m.callbackButton('New Large', 'new_large'),
+  m.callbackButton('New Small', 'new_small'),
+  m.callbackButton('Old Large', 'old_large'),
+  m.callbackButton('Old Small', 'old_small')
 ]))
 
 const bot = new Telegraf(process.env.BOT_TOKEN)
@@ -128,32 +130,33 @@ bot.on('photo', async (ctx) => {
   handleRequest(ctx)
 })
 
-bot.action('small_l', async (ctx) => {
-  let light = true
+
+bot.action('new_small', async (ctx) => {
+  let new_model = true
   ctx.answerCbQuery()
-  ctx.editMessageText('Small it is then! Doing my magic, may take a few minutes!')
-  handleImage(ctx.session.link, MIN_SIZE, light, ctx)
+  ctx.editMessageText('New it is then! Doing my magic, may take a few minutes!')
+  handleImage(ctx.session.link, MIN_SIZE, ctx, new_model)
 })
 
-bot.action('large_l', async (ctx) => {
-  let light = true
+bot.action('new_large', async (ctx) => {
+  let new_model = true
   ctx.answerCbQuery()
-  ctx.editMessageText('Large it is then! Doing my magic, may take a few minutes!')
-  handleImage(ctx.session.link, MAX_SIZE, light, ctx)
+  ctx.editMessageText('New large it is then! Doing my magic, may take a few minutes!')
+  handleImage(ctx.session.link, MAX_TARGET, ctx, new_model)
 })
 
-bot.action('small_a', async (ctx) => {
-  let light = false
+bot.action('old_small', async (ctx) => {
+  let new_model = false
   ctx.answerCbQuery()
-  ctx.editMessageText('Small it is then! Doing my magic, may take a few minutes!')
-  handleImage(ctx.session.link, MIN_SIZE, light, ctx)
+  ctx.editMessageText('Old it is then! Doing my magic, may take a few minutes!')
+  handleImage(ctx.session.link, MIN_SIZE, ctx, new_model)
 })
 
-bot.action('large_a', async (ctx) => {
-  let light = false
+bot.action('old_large', async (ctx) => {
+  let new_model = false
   ctx.answerCbQuery()
-  ctx.editMessageText('Large it is then! Doing my magic, may take a few minutes!')
-  handleImage(ctx.session.link, MAX_SIZE, light, ctx)
+  ctx.editMessageText('Old large it is then! Doing my magic, may take a few minutes!')
+  handleImage(ctx.session.link, MAX_TARGET, ctx, new_model)
 })
 
 console.log('lauching')

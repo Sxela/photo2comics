@@ -115,7 +115,7 @@ const imageMenu = Telegraf.Extra
   m.callbackButton('New Small', 'new_small'),
   m.callbackButton('Old Large', 'old_large'),
   m.callbackButton('Old Small', 'old_small')
-]))
+], {columns: 2} ))
 
 const bot = new Telegraf(process.env.BOT_TOKEN)
 bot.use(checkTime)
